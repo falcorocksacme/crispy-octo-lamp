@@ -1,0 +1,33 @@
+name: copy-and-attest-image
+
+on:
+  push:
+    branches: [main]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    permissions:
+      id-token: write
+      packages: write
+      contents: read
+      attestations: write
+    steps:
+      - name: Login to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - uses: imjasonh/setup-crane@31b88efe9de28ae0ffa220711af4b60be9435f6e
+      - name: copy
+        run: crane copy chainguard/redis:latest ghcr.io/falcorocksacme/crispy-octo-lamp/chainguard-redis:latest
+      - name: fetch digest from ghcr
+        run: echo "DIGEST=$(crane digest ghcr.io/falcorocksacme/crispy-octo-lamp/chainguard-redis:latest)" >> $GITHUB_ENV
+      - name: Attest
+        uses: actions/attest-build-provenance@v1
+        id: attest
+        with:
+          subject-name: ghcr.io/falcorocksacme/crispy-octo-lamp/chainguard-redis
+          subject-digest: ${{ env.DIGEST }}
+          push-to-registry: true
